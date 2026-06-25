@@ -16,7 +16,11 @@
   :_  this
   ~[[%pass /eyre-bind %arvo %e %connect [~ /apps/calendar] %calendar]]
 ++  on-save   !>(state)
-++  on-load   |=(=vase `this)
+++  on-load
+  |=  =vase
+  ^-  (quip card _this)
+  :_  this
+  ~[[%pass /eyre-bind %arvo %e %connect [~ /apps/calendar] %calendar]]
 ++  on-poke
   |=  [=mark =vase]
   ^-  (quip card _this)
