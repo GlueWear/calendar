@@ -1,0 +1,10 @@
+:~
+  title+'Calendar'
+  info+'A Noltbook-native calendar for private reminders and shareable event artifacts.'
+  color+0xff.ff00
+  version+[365 0 0]
+  website+''
+  license+'MIT'
+  base+'calendar'
+  site+/apps/calendar
+==
