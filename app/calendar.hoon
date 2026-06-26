@@ -135,6 +135,75 @@
     ?~  t.pairs  row
     :(weld row "," $(pairs t.pairs))
   (crip :(weld "{" body "}"))
+++  json-followers-flat
+  |=  folmap=(map @t (set @p))
+  ^-  @t
+  =/  pairs=(list [@t (set @p)])  ~(tap by folmap)
+  =/  out=tape
+    |-  ^-  tape
+    ?~  pairs  ~
+    =/  ships=(list @p)  ~(tap in +.i.pairs)
+    =/  ships-json=@t  (json-ship-list ships)
+    =/  row=tape  :(weld (trip '{"eventKey":"') (trip -.i.pairs) (trip '","ships":') (trip ships-json) "}")
+    ?~  t.pairs  row
+    :(weld row "," $(pairs t.pairs))
+  (crip :(weld "[" out "]"))
+++  json-refs-flat
+  |=  refmap=(map @t (set @ta))
+  ^-  @t
+  =/  pairs=(list [@t (set @ta)])  ~(tap by refmap)
+  =/  out=tape
+    |-  ^-  tape
+    ?~  pairs  ~
+    =/  ids=(list @t)  ~(tap in +.i.pairs)
+    =/  ids-json=@t  (json-str-list ids)
+    =/  row=tape  :(weld (trip '{"eventKey":"') (trip -.i.pairs) (trip '","artifactIds":') (trip ids-json) "}")
+    ?~  t.pairs  row
+    :(weld row "," $(pairs t.pairs))
+  (crip :(weld "[" out "]"))
+++  json-raw-flat
+  |=  rawmap=(map @t @t)
+  ^-  @t
+  =/  pairs=(list [@t @t])  ~(tap by rawmap)
+  =/  out=tape
+    |-  ^-  tape
+    ?~  pairs  ~
+    =/  row=tape  :(weld (trip '{"eventKey":"') (trip -.i.pairs) (trip '","event":') (trip +.i.pairs) "}")
+    ?~  t.pairs  row
+    :(weld row "," $(pairs t.pairs))
+  (crip :(weld "[" out "]"))
+++  json-follow-targets
+  |=  [our=@p evmap=(map @t @t) refmap=(map @t @t)]
+  ^-  @t
+  =/  saved=(list [@t @t])  ~(tap by evmap)
+  =/  refs=(list [@t @t])  ~(tap by refmap)
+  =/  rows=tape
+    =+  xs=saved
+    |-  ^-  tape
+    ?~  xs  ~
+    =/  who=@p  (event-creator our +.i.xs)
+    =/  rest=tape  $(xs t.xs)
+    ?:  =(who our)  rest
+    =/  row=tape  :(weld (trip '{"eventKey":"') (trip -.i.xs) (trip '","creator":"') (trip (scot %p who)) (trip '","kind":"save"}'))
+    ?~  rest  row
+    :(weld row "," rest)
+  =/  ref-rows=tape
+    =+  xs=refs
+    |-  ^-  tape
+    ?~  xs  ~
+    =/  who=@p  (event-creator our +.i.xs)
+    =/  rest=tape  $(xs t.xs)
+    ?:  =(who our)  rest
+    =/  row=tape  :(weld (trip '{"eventKey":"') (trip -.i.xs) (trip '","creator":"') (trip (scot %p who)) (trip '","kind":"ref"}'))
+    ?~  rest  row
+    :(weld row "," rest)
+  =/  all=tape
+    ?~  rows
+      ref-rows
+    ?~  ref-rows
+      rows
+    :(weld rows "," ref-rows)
+  (crip :(weld "[" all "]"))
 ++  artifact-content
   |=  raw=@t
   ^-  @t
@@ -274,16 +343,18 @@
       [(give-simple-payload:app:server eyre-id simple-payload) this]
     ?:  &(=(%'GET' method.request.inbound-request) =(path-tape "/apps/calendar/api/debug"))
       =/  evs=@t  (json-list ~(val by events.state))
-      =/  fol=@t  (json-followers followers.state)
-      =/  rfs=@t  (json-refs refs.state)
       =/  rfl=@t  (json-str-list ~(tap in ref-following.state))
-      =/  rev=@t  (json-raw-map ref-events.state)
+      =/  fol-flat=@t  (json-followers-flat followers.state)
+      =/  rfs-flat=@t  (json-refs-flat refs.state)
+      =/  rev-flat=@t  (json-raw-flat ref-events.state)
+      =/  targets=@t  (json-follow-targets our.bowl events.state ref-events.state)
       =/  dbg=tape  :(weld (trip '{"ok":true,"ship":"') (trip (scot %p our.bowl)))
-      =.  dbg  :(weld dbg (trip '","version":"365K-propagation-debug-1","events":') (trip evs))
-      =.  dbg  :(weld dbg (trip ',"followers":') (trip fol))
-      =.  dbg  :(weld dbg (trip ',"refs":') (trip rfs))
+      =.  dbg  :(weld dbg (trip '","version":"365K-propagation-debug-2","events":') (trip evs))
       =.  dbg  :(weld dbg (trip ',"refFollowing":') (trip rfl))
-      =.  dbg  :(weld dbg (trip ',"refEvents":') (trip rev) "}")
+      =.  dbg  :(weld dbg (trip ',"followersFlat":') (trip fol-flat))
+      =.  dbg  :(weld dbg (trip ',"refsFlat":') (trip rfs-flat))
+      =.  dbg  :(weld dbg (trip ',"refEventsFlat":') (trip rev-flat))
+      =.  dbg  :(weld dbg (trip ',"followTargets":') (trip targets) "}")
       =/  body=@t  (crip dbg)
       =/  =simple-payload:http
         :-  [200 ~[['content-type' 'application/json']]]
