@@ -82,6 +82,59 @@
     ?~  t.items  (trip i.items)
     :(weld (trip i.items) "," $(items t.items))
   (crip :(weld "[" body "]"))
+++  json-str-list
+  |=  items=(list @t)
+  ^-  @t
+  =/  body=tape
+    |-  ^-  tape
+    ?~  items  ~
+    =/  item=tape  :(weld "\"" (trip i.items) "\"")
+    ?~  t.items  item
+    :(weld item "," $(items t.items))
+  (crip :(weld "[" body "]"))
+++  json-ship-list
+  |=  ships=(list @p)
+  ^-  @t
+  =/  body=tape
+    |-  ^-  tape
+    ?~  ships  ~
+    =/  item=tape  :(weld "\"" (trip (scot %p i.ships)) "\"")
+    ?~  t.ships  item
+    :(weld item "," $(ships t.ships))
+  (crip :(weld "[" body "]"))
+++  json-followers
+  |=  folmap=(map @t (set @p))
+  ^-  @t
+  =/  pairs=(list [@t (set @p)])  ~(tap by folmap)
+  =/  body=tape
+    |-  ^-  tape
+    ?~  pairs  ~
+    =/  row=tape  :(weld "\"" (trip -.i.pairs) "\":" (trip (json-ship-list ~(tap in +.i.pairs))))
+    ?~  t.pairs  row
+    :(weld row "," $(pairs t.pairs))
+  (crip :(weld "{" body "}"))
+++  json-refs
+  |=  refmap=(map @t (set @ta))
+  ^-  @t
+  =/  pairs=(list [@t (set @ta)])  ~(tap by refmap)
+  =/  body=tape
+    |-  ^-  tape
+    ?~  pairs  ~
+    =/  row=tape  :(weld "\"" (trip -.i.pairs) "\":" (trip (json-str-list ~(tap in +.i.pairs))))
+    ?~  t.pairs  row
+    :(weld row "," $(pairs t.pairs))
+  (crip :(weld "{" body "}"))
+++  json-raw-map
+  |=  rawmap=(map @t @t)
+  ^-  @t
+  =/  pairs=(list [@t @t])  ~(tap by rawmap)
+  =/  body=tape
+    |-  ^-  tape
+    ?~  pairs  ~
+    =/  row=tape  :(weld "\"" (trip -.i.pairs) "\":" (trip +.i.pairs))
+    ?~  t.pairs  row
+    :(weld row "," $(pairs t.pairs))
+  (crip :(weld "{" body "}"))
 ++  artifact-content
   |=  raw=@t
   ^-  @t
@@ -215,6 +268,23 @@
     ?:  &(=(%'GET' method.request.inbound-request) =(path-tape "/apps/calendar/api/events"))
       =/  evs=@t  (json-list ~(val by events.state))
       =/  body=@t  (crip :(weld (trip '{"ok":true,"events":') (trip evs) "}"))
+      =/  =simple-payload:http
+        :-  [200 ~[['content-type' 'application/json']]]
+        `(as-octs:mimes:html body)
+      [(give-simple-payload:app:server eyre-id simple-payload) this]
+    ?:  &(=(%'GET' method.request.inbound-request) =(path-tape "/apps/calendar/api/debug"))
+      =/  evs=@t  (json-list ~(val by events.state))
+      =/  fol=@t  (json-followers followers.state)
+      =/  rfs=@t  (json-refs refs.state)
+      =/  rfl=@t  (json-str-list ~(tap in ref-following.state))
+      =/  rev=@t  (json-raw-map ref-events.state)
+      =/  dbg=tape  :(weld (trip '{"ok":true,"ship":"') (trip (scot %p our.bowl)))
+      =.  dbg  :(weld dbg (trip '","version":"365K-propagation-debug-1","events":') (trip evs))
+      =.  dbg  :(weld dbg (trip ',"followers":') (trip fol))
+      =.  dbg  :(weld dbg (trip ',"refs":') (trip rfs))
+      =.  dbg  :(weld dbg (trip ',"refFollowing":') (trip rfl))
+      =.  dbg  :(weld dbg (trip ',"refEvents":') (trip rev) "}")
+      =/  body=@t  (crip dbg)
       =/  =simple-payload:http
         :-  [200 ~[['content-type' 'application/json']]]
         `(as-octs:mimes:html body)
