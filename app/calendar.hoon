@@ -102,7 +102,7 @@
       (scag u.q url-tape)
     ?:  =(path-tape "/apps/calendar/noltbook.json")
       =/  manifest=@t
-        '{"noltbookVersion":"365K","version":"365K","title":"Calendar","summary":"A Noltbook-native calendar for private reminders and shareable event artifacts.","launch":{"href":"/apps/calendar","target":"embedded","width":680,"height":720},"artifact":{"label":"Calendar","href":"/apps/calendar/embed","width":680,"height":720},"actions":[{"id":"open","kind":"open","label":"Open Calendar","description":"Open your private Calendar month view.","href":"/apps/calendar","target":"embedded","width":680,"height":720}]}'
+        '{"noltbookVersion":"365K","version":"365K","title":"Calendar","summary":"A Noltbook-native calendar for private reminders and shareable event artifacts.","launch":{"href":"/apps/calendar","target":"embedded","width":680,"height":720},"artifact":{"label":"Calendar","href":"/apps/calendar/embed","width":340,"height":220},"actions":[{"id":"open","kind":"open","label":"Open Calendar","description":"Open your private Calendar month view.","href":"/apps/calendar","target":"embedded","width":680,"height":720}]}'
       =/  =simple-payload:http
         :-  [200 ~[['content-type' 'application/json']]]
         `(as-octs:mimes:html manifest)
