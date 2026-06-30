@@ -7,6 +7,7 @@
   $%  [%follow event-key=@t raw=@t kind=?(%save %ref)]
       [%unfollow event-key=@t]
       [%event-update event-key=@t raw=@t]
+      [%sync-update event-key=@t raw=@t]
       [%sync-request event-key=@t]
   ==
 --
