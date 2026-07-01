@@ -7,7 +7,9 @@
   [%1 events=(map @t @t) followers=(map @t (set @p)) refs=(map @t (set @ta)) ref-following=(set @t) ref-events=(map @t @t)]
 +$  state-2
   [%2 events=(map @t @t) followers=(map @t (set @p)) refs=(map @t (set @ta)) ref-following=(set @t) ref-events=(map @t @t) saved-followers=(map @t (set @p)) event-notes=(map @t @ta) note-requests=(map @ud @t)]
-+$  versioned-state  $%  state-0  state-1  state-2  ==
++$  state-3
+  [%3 events=(map @t @t) followers=(map @t (set @p)) refs=(map @t (set @ta)) ref-following=(set @t) ref-events=(map @t @t) saved-followers=(map @t (set @p)) event-notes=(map @t @ta) note-requests=(map @ud @t) sent-reminders=(map @t @t)]
++$  versioned-state  $%  state-0  state-1  state-2  state-3  ==
 +$  cal-poke  cal-poke:calendar-poke
 +$  card  card:agent:gall
 ++  json-str-field
@@ -324,7 +326,7 @@
   (weld saved-cards ref-cards)
 --
 %-  agent:dbug
-=|  state-2
+=|  state-3
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -342,11 +344,13 @@
   =/  next=_this
     ?-    -.old
       %0
-      this(events events.old, followers *(map @t (set @p)), refs *(map @t (set @ta)), ref-following *(set @t), ref-events *(map @t @t), saved-followers *(map @t (set @p)), event-notes *(map @t @ta), note-requests *(map @ud @t))
+      this(events events.old, followers *(map @t (set @p)), refs *(map @t (set @ta)), ref-following *(set @t), ref-events *(map @t @t), saved-followers *(map @t (set @p)), event-notes *(map @t @ta), note-requests *(map @ud @t), sent-reminders *(map @t @t))
         %1
-      this(events events.old, followers followers.old, refs refs.old, ref-following ref-following.old, ref-events ref-events.old, saved-followers *(map @t (set @p)), event-notes *(map @t @ta), note-requests *(map @ud @t))
+      this(events events.old, followers followers.old, refs refs.old, ref-following ref-following.old, ref-events ref-events.old, saved-followers *(map @t (set @p)), event-notes *(map @t @ta), note-requests *(map @ud @t), sent-reminders *(map @t @t))
         %2
-      this(events events.old, followers followers.old, refs refs.old, ref-following ref-following.old, ref-events ref-events.old, saved-followers saved-followers.old, event-notes event-notes.old, note-requests note-requests.old)
+      this(events events.old, followers followers.old, refs refs.old, ref-following ref-following.old, ref-events ref-events.old, saved-followers saved-followers.old, event-notes event-notes.old, note-requests note-requests.old, sent-reminders *(map @t @t))
+        %3
+      this(events events.old, followers followers.old, refs refs.old, ref-following ref-following.old, ref-events ref-events.old, saved-followers saved-followers.old, event-notes event-notes.old, note-requests note-requests.old, sent-reminders sent-reminders.old)
     ==
   :_  next
   (weld ~[[%pass /eyre-bind %arvo %e %connect [~ /apps/calendar] %calendar]] (startup-sync-cards our.bowl events.next ref-events.next))
@@ -400,13 +404,15 @@
         (weld cards ~[?:(cancelled (event-cancelled-card our.bowl raw.msg) (event-changed-card our.bowl raw.msg))])
       =?  cards  &(was-saved cancelled)
         (weld cards ~[(clear-notification-card our.bowl id)])
-      =?  cards  was-saved
+      =?  cards  &(was-saved changed)
         ?:  cancelled
           cards
         (weld cards (reminder-card our.bowl now.bowl raw.msg))
       :_  ?:  was-saved
             ?:  cancelled
-              this(events (~(del by events.state) event-key.msg), ref-events ?:(was-ref (~(put by ref-events.state) event-key.msg raw.msg) ref-events.state))
+              this(events (~(del by events.state) event-key.msg), ref-events ?:(was-ref (~(put by ref-events.state) event-key.msg raw.msg) ref-events.state), sent-reminders (~(del by sent-reminders.state) id))
+            ?:  changed
+              this(events (~(put by events.state) event-key.msg raw.msg), sent-reminders (~(del by sent-reminders.state) id))
             this(events (~(put by events.state) event-key.msg raw.msg))
           ?:  was-ref
             this(ref-events (~(put by ref-events.state) event-key.msg raw.msg))
@@ -420,16 +426,22 @@
       =/  blob=tape  (trip raw.msg)
       =/  cancelled=?  (json-true-field 'cancelled' blob)
       =/  id=@t  (fall (json-str-field 'id' blob) 'missing')
+      =/  changed=?
+        ?~  old-raw  %.n
+        ?.  =(u.old-raw raw.msg)  %.y
+        %.n
       =/  cards=(list card)  (local-artifact-cards our.bowl event-key.msg raw.msg refs.state)
       =?  cards  &(was-saved cancelled)
         (weld cards ~[(clear-notification-card our.bowl id)])
-      =?  cards  was-saved
+      =?  cards  &(was-saved changed)
         ?:  cancelled
           cards
         (weld cards (reminder-card our.bowl now.bowl raw.msg))
       :_  ?:  was-saved
             ?:  cancelled
-              this(events (~(del by events.state) event-key.msg), ref-events ?:(was-ref (~(put by ref-events.state) event-key.msg raw.msg) ref-events.state))
+              this(events (~(del by events.state) event-key.msg), ref-events ?:(was-ref (~(put by ref-events.state) event-key.msg raw.msg) ref-events.state), sent-reminders (~(del by sent-reminders.state) id))
+            ?:  changed
+              this(events (~(put by events.state) event-key.msg raw.msg), sent-reminders (~(del by sent-reminders.state) id))
             this(events (~(put by events.state) event-key.msg raw.msg))
           ?:  was-ref
             this(ref-events (~(put by ref-events.state) event-key.msg raw.msg))
@@ -558,20 +570,20 @@
       =?  out-cards  &(=(creator our.bowl) cancelled)
         (weld out-cards ~[(clear-notification-card our.bowl id)])
       ?:  &(=(creator our.bowl) cancelled)
-        [out-cards this(events (~(del by events.state) key))]
+        [out-cards this(events (~(del by events.state) key), sent-reminders (~(del by sent-reminders.state) id))]
       =/  delay=(unit @t)  (json-str-field 'notifyInSec' blob)
       ?~  delay
-        [out-cards this(events (~(put by events.state) key raw))]
+        [out-cards this(events (~(put by events.state) key raw), sent-reminders (~(del by sent-reminders.state) id))]
       ?:  =(0 (met 3 u.delay))
-        [out-cards this(events (~(put by events.state) key raw))]
+        [out-cards this(events (~(put by events.state) key raw), sent-reminders (~(del by sent-reminders.state) id))]
       =/  sec=@ud  (rash u.delay dem)
       ?:  =(0 sec)
-        [out-cards this(events (~(put by events.state) key raw))]
+        [out-cards this(events (~(put by events.state) key raw), sent-reminders (~(del by sent-reminders.state) id))]
       =/  deadline=@da  (add now.bowl (mul sec ~s1))
       =/  wait
         ^-  card:agent:gall
         [%pass /reminder/[id-ta]/[updated-ta] %arvo %b %wait deadline]
-      [(weld out-cards ~[wait]) this(events (~(put by events.state) key raw))]
+      [(weld out-cards ~[wait]) this(events (~(put by events.state) key raw), sent-reminders (~(del by sent-reminders.state) id))]
     ?:  &(=(%'POST' method.request.inbound-request) =(path-tape "/apps/calendar/api/create-event-note"))
       =/  bod  body.request.inbound-request
       ?~  bod
@@ -623,7 +635,7 @@
       =/  clr  (clear-notification-card our.bowl id)
       =/  keep-ref=?  (~(has in ref-following.state) key)
       =/  unf=(list card)  (unfollow-card our.bowl key raw keep-ref)
-      :_  this(events (~(del by events.state) key))
+      :_  this(events (~(del by events.state) key), sent-reminders (~(del by sent-reminders.state) id))
       :(weld rsp-cards ~[clr] unf)
     ?:  &(=(%'POST' method.request.inbound-request) =(path-tape "/apps/calendar/api/reference"))
       =/  bod  body.request.inbound-request
@@ -684,7 +696,12 @@
     ?:  =(0 (met 3 u.delay))  `this
     =/  cur=@t  (fall (json-str-field 'updatedAt' blob) '')
     ?.  =(cur updated)  `this
-    :_  this
+    =/  sent=(unit @t)  (~(get by sent-reminders.state) id)
+    ?^  sent
+      ?:  =(u.sent updated)  `this
+      :_  this(sent-reminders (~(put by sent-reminders.state) id updated))
+      ~[(set-notification-card our.bowl u.ev)]
+    :_  this(sent-reminders (~(put by sent-reminders.state) id updated))
     ~[(set-notification-card our.bowl u.ev)]
   ?+  wire  (on-arvo:def wire sign-arvo)
       [%eyre-bind ~]
