@@ -5,6 +5,5 @@
   version+[365 0 0]
   website+''
   license+'MIT'
-  base+'calendar'
   site+/apps/calendar
 ==
